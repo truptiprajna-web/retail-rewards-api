@@ -8,8 +8,3 @@ CREATE TABLE purchase_transactions (
     transaction_date DATE NOT NULL
 );
 
-CREATE INDEX idx_transaction_customer
-    ON purchase_transactions (customer_id);
-
-CREATE INDEX idx_transaction_date
-    ON purchase_transactions (transaction_date);
