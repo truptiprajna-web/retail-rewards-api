@@ -1,34 +1,53 @@
 package com.retailer.rewards.repository;
 
 import com.retailer.rewards.model.Transaction;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
-import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
-@Repository
-public class TransactionRepository {
+/**
+ * Provides database access for recorded customer purchases.
+ */
+public interface TransactionRepository extends JpaRepository<Transaction, Long> {
 
-    private final List<Transaction> transactions = Arrays.asList(
-            new Transaction(1, 101, "Anita", 120, LocalDate.of(2026, 1, 10)),
-            new Transaction(2, 101, "Anita", 75, LocalDate.of(2026, 1, 18)),
-            new Transaction(3, 101, "Anita", 200, LocalDate.of(2026, 2, 5)),
-            new Transaction(4, 101, "Anita", 50, LocalDate.of(2026, 3, 12)),
-            new Transaction(5, 102, "Rahul", 95, LocalDate.of(2026, 1, 7)),
-            new Transaction(6, 102, "Rahul", 130, LocalDate.of(2026, 2, 14)),
-            new Transaction(7, 102, "Rahul", 45, LocalDate.of(2026, 3, 20)),
-            new Transaction(8, 102, "Rahul", 110, LocalDate.of(2026, 3, 25))
-    );
+    /**
+     * Finds the most recent transaction in the complete data set.
+     *
+     * @return the most recent transaction, when data exists
+     */
+    Optional<Transaction> findTopByOrderByTransactionDateDesc();
 
-    public List<Transaction> findAll() {
-        return transactions;
-    }
+    /**
+     * Finds the most recent transaction for one customer.
+     *
+     * @param customerId customer identifier
+     * @return the customer's most recent transaction, when the customer exists
+     */
+    Optional<Transaction> findTopByCustomerIdOrderByTransactionDateDesc(
+            long customerId);
 
-    public List<Transaction> findByCustomerId(long customerId) {
-        return transactions.stream()
-                .filter(transaction -> transaction.getCustomerId() == customerId)
-                .collect(Collectors.toList());
-    }
+    /**
+     * Finds all transactions inside an inclusive reporting period.
+     *
+     * @param startDate first date in the period
+     * @param endDate last date in the period
+     * @return transactions ordered by customer and date
+     */
+    List<Transaction>
+            findByTransactionDateBetweenOrderByCustomerIdAscTransactionDateAsc(
+                    LocalDate startDate, LocalDate endDate);
+
+    /**
+     * Finds one customer's transactions inside an inclusive reporting period.
+     *
+     * @param customerId customer identifier
+     * @param startDate first date in the period
+     * @param endDate last date in the period
+     * @return transactions ordered by date
+     */
+    List<Transaction>
+            findByCustomerIdAndTransactionDateBetweenOrderByTransactionDateAsc(
+                    long customerId, LocalDate startDate, LocalDate endDate);
 }

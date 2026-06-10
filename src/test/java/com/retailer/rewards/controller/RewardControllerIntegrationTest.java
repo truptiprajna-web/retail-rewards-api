@@ -24,14 +24,26 @@ class RewardControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].customerName").value("Anita"))
                 .andExpect(jsonPath("$[0].totalPoints").value(365))
-                .andExpect(jsonPath("$[1].customerName").value("Rahul"));
+                .andExpect(jsonPath("$[0].monthlyRewards.length()").value(5))
+                .andExpect(jsonPath("$[1].customerName").value("Rahul"))
+                .andExpect(jsonPath("$[1].totalPoints").value(225));
     }
 
     @Test
     void shouldReturnNotFoundForUnknownCustomer() throws Exception {
         mockMvc.perform(get("/api/rewards/999"))
                 .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.message")
                         .value("Customer not found with id: 999"));
+    }
+
+    @Test
+    void shouldRejectInvalidCustomerId() throws Exception {
+        mockMvc.perform(get("/api/rewards/-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message")
+                        .value("Customer id must be positive"));
     }
 }
