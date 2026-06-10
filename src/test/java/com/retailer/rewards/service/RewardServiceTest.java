@@ -6,6 +6,7 @@ import com.retailer.rewards.model.Transaction;
 import com.retailer.rewards.repository.TransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -26,7 +27,7 @@ class RewardServiceTest {
     @BeforeEach
     void setUp() {
         transactionRepository = mock(TransactionRepository.class);
-        rewardService = new RewardService(transactionRepository, 3);
+        rewardService = createRewardService(3);
     }
 
     @Test
@@ -121,7 +122,7 @@ class RewardServiceTest {
     @Test
     void shouldUseConfiguredNumberOfMonths() {
         RewardService eightMonthService =
-                new RewardService(transactionRepository, 8);
+                createRewardService(8);
         Transaction latest = new Transaction(
                 1, 101, "Anita", 120, LocalDate.of(2026, 3, 10));
         when(transactionRepository
@@ -146,7 +147,22 @@ class RewardServiceTest {
 
     @Test
     void shouldRejectInvalidRewardPeriodConfiguration() {
+        RewardService invalidService = createRewardService(0);
+        Transaction latest = new Transaction(
+                1, 101, "Anita", 120, LocalDate.of(2026, 3, 10));
+        when(transactionRepository
+                .findTopByCustomerIdOrderByTransactionDateDesc(101))
+                .thenReturn(Optional.of(latest));
+
         assertThrows(IllegalArgumentException.class,
-                () -> new RewardService(transactionRepository, 0));
+                () -> invalidService.getCustomerReward(101));
+    }
+
+    private RewardService createRewardService(int months) {
+        RewardService service = new RewardService();
+        ReflectionTestUtils.setField(
+                service, "transactionRepository", transactionRepository);
+        ReflectionTestUtils.setField(service, "rewardPeriodMonths", months);
+        return service;
     }
 }

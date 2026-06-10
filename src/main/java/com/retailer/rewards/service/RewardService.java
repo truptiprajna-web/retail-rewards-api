@@ -5,8 +5,8 @@ import com.retailer.rewards.model.CustomerReward;
 import com.retailer.rewards.model.MonthlyReward;
 import com.retailer.rewards.model.Transaction;
 import com.retailer.rewards.repository.TransactionRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -22,32 +22,18 @@ import java.util.Optional;
 /**
  * Calculates monthly and total reward points from stored transactions.
  */
+@Slf4j
 @Service
 public class RewardService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(RewardService.class);
     private static final DateTimeFormatter MONTH_FORMAT =
             DateTimeFormatter.ofPattern("MMMM yyyy");
 
-    private final TransactionRepository transactionRepository;
-    private final int rewardPeriodMonths;
+    @Autowired
+    private TransactionRepository transactionRepository;
 
-    /**
-     * Creates the reward service.
-     *
-     * @param transactionRepository transaction database access
-     * @param rewardPeriodMonths number of months included in a reward report
-     */
-    public RewardService(
-            TransactionRepository transactionRepository,
-            @Value("${rewards.period.months}") int rewardPeriodMonths) {
-        if (rewardPeriodMonths < 1) {
-            throw new IllegalArgumentException(
-                    "Reward period months must be greater than zero");
-        }
-        this.transactionRepository = transactionRepository;
-        this.rewardPeriodMonths = rewardPeriodMonths;
-    }
+    @Value("${rewards.period.months}")
+    private int rewardPeriodMonths;
 
     /**
      * Calculates reward reports for all customers in the configured period.
@@ -70,20 +56,24 @@ public class RewardService {
                 .findByTransactionDateBetweenOrderByCustomerIdAscTransactionDateAsc(
                         startDate, endDate);
 
-        Map<Long, RewardAccumulator> rewardsByCustomer = new LinkedHashMap<>();
+        Map<Long, List<Transaction>> transactionsByCustomer =
+                new LinkedHashMap<>();
+
         for (Transaction transaction : transactions) {
-            RewardAccumulator accumulator = rewardsByCustomer.computeIfAbsent(
-                    transaction.getCustomerId(),
-                    customerId -> new RewardAccumulator(
-                            customerId,
-                            transaction.getCustomerName(),
-                            periodEnd));
-            accumulator.add(transaction);
+            long customerId = transaction.getCustomerId();
+
+            if (!transactionsByCustomer.containsKey(customerId)) {
+                transactionsByCustomer.put(customerId, new ArrayList<>());
+            }
+
+            transactionsByCustomer.get(customerId).add(transaction);
         }
 
         List<CustomerReward> rewards = new ArrayList<>();
-        for (RewardAccumulator accumulator : rewardsByCustomer.values()) {
-            rewards.add(accumulator.toCustomerReward());
+        for (List<Transaction> customerTransactions
+                : transactionsByCustomer.values()) {
+            rewards.add(createCustomerReward(
+                    customerTransactions, periodEnd));
         }
         return rewards;
     }
@@ -111,12 +101,7 @@ public class RewardService {
                         getPeriodStart(periodEnd),
                         periodEnd.atEndOfMonth());
 
-        RewardAccumulator accumulator = new RewardAccumulator(
-                customerId, latest.getCustomerName(), periodEnd);
-        for (Transaction transaction : transactions) {
-            accumulator.add(transaction);
-        }
-        return accumulator.toCustomerReward();
+        return createCustomerReward(transactions, periodEnd);
     }
 
     /**
@@ -139,49 +124,46 @@ public class RewardService {
     }
 
     private LocalDate getPeriodStart(YearMonth periodEnd) {
+        if (rewardPeriodMonths < 1) {
+            throw new IllegalArgumentException(
+                    "Reward period months must be greater than zero");
+        }
         return periodEnd.minusMonths(rewardPeriodMonths - 1L).atDay(1);
     }
 
-    private final class RewardAccumulator {
+    private CustomerReward createCustomerReward(
+            List<Transaction> transactions, YearMonth periodEnd) {
+        Transaction firstTransaction = transactions.get(0);
+        Map<YearMonth, Integer> pointsByMonth = new LinkedHashMap<>();
 
-        private final long customerId;
-        private final String customerName;
-        private final Map<YearMonth, Integer> pointsByMonth =
-                new LinkedHashMap<>();
-        private int totalPoints;
-
-        private RewardAccumulator(
-                long customerId, String customerName, YearMonth periodEnd) {
-            this.customerId = customerId;
-            this.customerName = customerName;
-
-            YearMonth firstMonth =
-                    periodEnd.minusMonths(rewardPeriodMonths - 1L);
-            for (int index = 0; index < rewardPeriodMonths; index++) {
-                pointsByMonth.put(firstMonth.plusMonths(index), 0);
-            }
+        YearMonth firstMonth =
+                periodEnd.minusMonths(rewardPeriodMonths - 1L);
+        for (int index = 0; index < rewardPeriodMonths; index++) {
+            pointsByMonth.put(firstMonth.plusMonths(index), 0);
         }
 
-        private void add(Transaction transaction) {
+        int totalPoints = 0;
+        for (Transaction transaction : transactions) {
             YearMonth month = YearMonth.from(transaction.getTransactionDate());
             int points = calculatePoints(transaction.getAmount());
             pointsByMonth.merge(month, points, Integer::sum);
             totalPoints += points;
         }
 
-        private CustomerReward toCustomerReward() {
-            List<MonthlyReward> monthlyRewards = new ArrayList<>();
-            for (Map.Entry<YearMonth, Integer> entry
-                    : pointsByMonth.entrySet()) {
-                monthlyRewards.add(new MonthlyReward(
-                        entry.getKey().format(MONTH_FORMAT),
-                        entry.getValue()));
-            }
-
-            LOGGER.info("Calculated {} points for customer {}",
-                    totalPoints, customerId);
-            return new CustomerReward(
-                    customerId, customerName, monthlyRewards, totalPoints);
+        List<MonthlyReward> monthlyRewards = new ArrayList<>();
+        for (Map.Entry<YearMonth, Integer> entry : pointsByMonth.entrySet()) {
+            monthlyRewards.add(new MonthlyReward(
+                    entry.getKey().format(MONTH_FORMAT),
+                    entry.getValue()));
         }
+
+        log.info("Calculated {} points for customer {}",
+                totalPoints, firstTransaction.getCustomerId());
+
+        return new CustomerReward(
+                firstTransaction.getCustomerId(),
+                firstTransaction.getCustomerName(),
+                monthlyRewards,
+                totalPoints);
     }
 }

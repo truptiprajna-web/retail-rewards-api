@@ -16,6 +16,7 @@ calculates monthly and total reward points for a configurable reporting period.
 - Maven
 - H2 Database
 - Spring Data JPA
+- Lombok
 - JUnit 5
 - Mockito
 - JaCoCo

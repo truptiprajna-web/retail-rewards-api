@@ -1,10 +1,13 @@
 package com.retailer.rewards.exception;
 
+import lombok.Getter;
+
 import java.time.LocalDateTime;
 
 /**
  * Standard error body returned by the REST API.
  */
+@Getter
 public class ApiError {
 
     private final LocalDateTime timestamp;
@@ -27,40 +30,5 @@ public class ApiError {
         this.error = error;
         this.message = message;
         this.path = path;
-    }
-
-    /**
-     * @return time when the error response was created
-     */
-    public LocalDateTime getTimestamp() {
-        return timestamp;
-    }
-
-    /**
-     * @return HTTP status number
-     */
-    public int getStatus() {
-        return status;
-    }
-
-    /**
-     * @return HTTP status description
-     */
-    public String getError() {
-        return error;
-    }
-
-    /**
-     * @return useful explanation of the failure
-     */
-    public String getMessage() {
-        return message;
-    }
-
-    /**
-     * @return requested API path
-     */
-    public String getPath() {
-        return path;
     }
 }

@@ -2,6 +2,7 @@ package com.retailer.rewards.controller;
 
 import com.retailer.rewards.model.CustomerReward;
 import com.retailer.rewards.service.RewardService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,11 +20,8 @@ import java.util.List;
 @RequestMapping("/api/rewards")
 public class RewardController {
 
-    private final RewardService rewardService;
-
-    public RewardController(RewardService rewardService) {
-        this.rewardService = rewardService;
-    }
+    @Autowired
+    private RewardService rewardService;
 
     /**
      * Returns reward reports for all customers.
