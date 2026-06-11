@@ -110,17 +110,16 @@ public class RewardService {
      * @param amount purchase amount
      * @return earned points
      */
-    public int calculatePoints(double amount) {
-        int wholeAmount = (int) Math.floor(amount);
-        int points = 0;
+    private int calculatePoints(double amount) {
+        if (amount <= 50) {
+            return 0;
+        }
 
-        if (wholeAmount > 100) {
-            points += (wholeAmount - 100) * 2;
-        }
-        if (wholeAmount > 50) {
-            points += Math.min(wholeAmount, 100) - 50;
-        }
-        return points;
+        return (int) Math.floor(
+                amount <= 100
+                        ? amount - 50
+                        : (amount - 100) * 2 + 50
+        );
     }
 
     private LocalDate getPeriodStart(YearMonth periodEnd) {

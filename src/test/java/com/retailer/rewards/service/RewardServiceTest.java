@@ -32,14 +32,21 @@ class RewardServiceTest {
 
     @Test
     void shouldCalculatePointsForDifferentAmounts() {
-        assertEquals(0, rewardService.calculatePoints(50));
-        assertEquals(0, rewardService.calculatePoints(50.99));
-        assertEquals(25, rewardService.calculatePoints(75));
-        assertEquals(50, rewardService.calculatePoints(100));
-        assertEquals(52, rewardService.calculatePoints(101));
-        assertEquals(90, rewardService.calculatePoints(120));
-        assertEquals(250, rewardService.calculatePoints(200));
-        assertEquals(0, rewardService.calculatePoints(-10));
+        assertEquals(0, getRewardForAmount(50).getTotalPoints());
+        assertEquals(0, getRewardForAmount(50.99).getTotalPoints());
+        assertEquals(25, getRewardForAmount(75).getTotalPoints());
+        assertEquals(50, getRewardForAmount(100).getTotalPoints());
+        assertEquals(51, getRewardForAmount(100.99).getTotalPoints());
+        assertEquals(52, getRewardForAmount(101).getTotalPoints());
+        assertEquals(90, getRewardForAmount(120).getTotalPoints());
+        assertEquals(250, getRewardForAmount(200).getTotalPoints());
+    }
+
+    @Test
+    void shouldReturnZeroPointsForNegativePurchaseAmount() {
+        CustomerReward reward = getRewardForAmount(-10);
+
+        assertEquals(0, reward.getTotalPoints());
     }
 
     @Test
@@ -164,5 +171,22 @@ class RewardServiceTest {
                 service, "transactionRepository", transactionRepository);
         ReflectionTestUtils.setField(service, "rewardPeriodMonths", months);
         return service;
+    }
+
+    private CustomerReward getRewardForAmount(double amount) {
+        Transaction transaction = new Transaction(
+                1, 101, "Anita", amount, LocalDate.of(2026, 3, 10));
+
+        when(transactionRepository
+                .findTopByCustomerIdOrderByTransactionDateDesc(101))
+                .thenReturn(Optional.of(transaction));
+        when(transactionRepository
+                .findByCustomerIdAndTransactionDateBetweenOrderByTransactionDateAsc(
+                        101,
+                        LocalDate.of(2026, 1, 1),
+                        LocalDate.of(2026, 3, 31)))
+                .thenReturn(Collections.singletonList(transaction));
+
+        return rewardService.getCustomerReward(101);
     }
 }
